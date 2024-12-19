@@ -2,13 +2,16 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://github.peekuh.io/posts/siwa/</loc>
-    <lastmod>2024-12-19T13:05:55+05:30</lastmod>
+    <loc>https://github.peekuh.io/posts/apple-iap/</loc>
+    <lastmod>2024-12-19T13:44:08+05:30</lastmod>
   </url><url>
     <loc>https://github.peekuh.io/</loc>
-    <lastmod>2024-12-19T13:05:55+05:30</lastmod>
+    <lastmod>2024-12-19T13:44:08+05:30</lastmod>
   </url><url>
     <loc>https://github.peekuh.io/posts/</loc>
+    <lastmod>2024-12-19T13:44:08+05:30</lastmod>
+  </url><url>
+    <loc>https://github.peekuh.io/posts/siwa/</loc>
     <lastmod>2024-12-19T13:05:55+05:30</lastmod>
   </url><url>
     <loc>https://github.peekuh.io/categories/</loc>

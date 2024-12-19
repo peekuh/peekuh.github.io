@@ -6,39 +6,271 @@
     <description>Recent content in Posts on peek&#39;s blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 19 Dec 2024 13:05:55 +0530</lastBuildDate><atom:link href="https://github.peekuh.io/posts/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Thu, 19 Dec 2024 13:44:08 +0530</lastBuildDate><atom:link href="https://github.peekuh.io/posts/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Integrating sign in with with to your Django project</title>
+      <title>Apple IAP</title>
+      <link>https://github.peekuh.io/posts/apple-iap/</link>
+      <pubDate>Thu, 19 Dec 2024 13:44:08 +0530</pubDate>
+      
+      <guid>https://github.peekuh.io/posts/apple-iap/</guid>
+      <description>&lt;p&gt;&lt;strong&gt;Coming Soon!&lt;/strong&gt;&lt;/p&gt;</description>
+      <content>&lt;p&gt;&lt;strong&gt;Coming Soon!&lt;/strong&gt;&lt;/p&gt;
+</content>
+    </item>
+    
+    <item>
+      <title>Integrating sign in with Apple with your Django project</title>
       <link>https://github.peekuh.io/posts/siwa/</link>
       <pubDate>Thu, 19 Dec 2024 13:05:55 +0530</pubDate>
       
       <guid>https://github.peekuh.io/posts/siwa/</guid>
-      <description>&lt;p&gt;This is some content&lt;/p&gt;
+      <description>&lt;p&gt;Apple’s documentation is pretty obscure, so here’s a comprehensive guide on integrating apple’s “Sign in with Apple” feature with your Django backend.&lt;/p&gt;
+&lt;p&gt;We will not be using Django-allauth or any external library for that matter, for the simple reason that a library as large as allauth is simply too overkill for our usecase.&lt;/p&gt;
+&lt;p&gt;Apple uses oauth2.0, even though its not explicitly mentioned in the docs, so if that’s something you’re already familiar with, this shouldn’t be too difficult.&lt;/p&gt;</description>
+      <content>&lt;p&gt;Apple’s documentation is pretty obscure, so here’s a comprehensive guide on integrating apple’s “Sign in with Apple” feature with your Django backend.&lt;/p&gt;
+&lt;p&gt;We will not be using Django-allauth or any external library for that matter, for the simple reason that a library as large as allauth is simply too overkill for our usecase.&lt;/p&gt;
+&lt;p&gt;Apple uses oauth2.0, even though its not explicitly mentioned in the docs, so if that’s something you’re already familiar with, this shouldn’t be too difficult.&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;Enroll into the Apple developer program developer console&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;This can take a while to verify even after you’hv processed the payment (upto 48 hrs in some cases)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Once you have access to the developer console, make an App ID list of identifiers&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;This is fairly straight forward, just make sure you select Sign in with apple under the “Capabilities” section.&lt;/li&gt;
+&lt;li&gt;Note: Your bundle ID needs to be unique, i.e you cannot have multiple App ID’s or service ID’s with the same bundle ID.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a service ID, click the dropdown at list of identifiers and select “Service IDs”. This is what the header should look like.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;img src=&#34;https://github.peekuh.io/1.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://github.peekuh.io/2.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;After you’re done creating your service ID, go back to your list of service ID’s and select the one you want to configure with SIWA.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;You’ll see the following page open,&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;img src=&#34;https://github.peekuh.io/4.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;
+keep the “sign in with apple” box checked and click the configure button&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;You should see the following pop up&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;img src=&#34;https://github.peekuh.io/5.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;In the Domains and subdomains section, enter the just domain name of your application without the https prefix. The “Return URLs” section should contain the endpoint in your application responsible for handling Apple’s callback after the User successfully completes the sign in process on the client side.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;For Samantha, our “domains and subdomains” section would contain : mysamantha.ai
+And our Return URL’s section should contain: &lt;a href=&#34;https://mysamantha.ai/account/apple/callback&#34;&gt;https://mysamantha.ai/account/apple/callback&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Notice how the return url is prefixed with https.
+Now, Apple being apple, does &lt;strong&gt;NOT&lt;/strong&gt; allow you to use domains without a valid SSL certificate, which means you’ll only be allowed to use return URLs with HTTPS and not http.&lt;/p&gt;
+&lt;p&gt;This is can be cumbersome to set for development and testing but its fairly straightforward to use once you have it setup.
+I used &lt;code&gt;mkcert&lt;/code&gt; to create a locally signed SSL certificate and &lt;code&gt;nginx&lt;/code&gt; to&lt;/p&gt;
+&lt;p&gt;Now, to make sure that your subdomains and return URLs actually register, make sure you follow the following steps:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Click next
+&lt;img src=&#34;https://github.peekuh.io/6.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Click done
+&lt;img src=&#34;https://github.peekuh.io/7.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;After that step you’ll see this page again.
+&lt;img src=&#34;https://github.peekuh.io/4.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Don’t just stop here, click continue and click save in the following page.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://github.peekuh.io/8.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;&lt;/p&gt;
+&lt;p&gt;Your configuration URL’s will not be saved otherwise, even if they seem like they’re added in the URL dropdown that looks like this:&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://github.peekuh.io/9.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;&lt;/p&gt;
+&lt;ol start=&#34;4&#34;&gt;
+&lt;li&gt;You’ll now have to create a private key that&amp;rsquo;ll be used to Sign the JWT that’ll contain your Client ID and Team ID.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;a.	Click configure and select the App ID that you want to associate the private key with&lt;/p&gt;
+&lt;p&gt;b.	Download the key. Note that this key is deleted from Apple’s servers after you download it so make sure you keep it safe.&lt;/p&gt;
+&lt;ol start=&#34;5&#34;&gt;
+&lt;li&gt;If you followed all of the above steps, you should now have the following:
+&lt;ul&gt;
+&lt;li&gt;Team ID&lt;/li&gt;
+&lt;li&gt;Key ID&lt;/li&gt;
+&lt;li&gt;Service ID&lt;/li&gt;
+&lt;li&gt;Redirect URI	Private key (.p8 file)
+That concludes the setup on Apple’s side of things.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Let’s now take a look at how we should go about integrating this without our Django backend.
+6.	To initiate the Apple login process, you first have to redirect your user to the following link &lt;a href=&#34;https://appleid.apple.com/auth/authorize&#34;&gt;https://appleid.apple.com/auth/authorize&lt;/a&gt;. The following data must be sent as query parameters to Apple.&lt;/p&gt;
+&lt;p&gt;&amp;ldquo;client_id&amp;rdquo;: getattr(settings, &amp;ldquo;APPLE_CLIENT_ID&amp;rdquo;)&lt;/p&gt;
+&lt;p&gt;&amp;ldquo;redirect_uri&amp;rdquo; : getattr(settings, &amp;ldquo;APPLE_REDIRECT_URI&amp;rdquo;)&lt;/p&gt;
+&lt;p&gt;&amp;ldquo;response_type&amp;rdquo; : &amp;ldquo;code&amp;rdquo;,&lt;/p&gt;
+&lt;p&gt;&amp;ldquo;scope&amp;rdquo; : &amp;ldquo;email&amp;rdquo;&lt;/p&gt;
+&lt;p&gt;&amp;ldquo;response_mode&amp;rdquo;: &amp;ldquo;form_post&amp;rdquo;&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;class&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;AppleLogin&lt;/span&gt;(View):
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get&lt;/span&gt;(self, request):
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        params &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; {
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;client_id&amp;#34;&lt;/span&gt;: getattr(settings, &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;APPLE_CLIENT_ID&amp;#34;&lt;/span&gt;),
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;redirect_uri&amp;#34;&lt;/span&gt; : getattr(settings, &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;APPLE_REDIRECT_URI&amp;#34;&lt;/span&gt;),
-&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;response_type&amp;#34;&lt;/span&gt; : &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;code&amp;#34;&lt;/span&gt;, &lt;span style=&#34;color:#75715e&#34;&gt;#authorization code from apple&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;response_type&amp;#34;&lt;/span&gt; : &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;code&amp;#34;&lt;/span&gt;, &lt;span style=&#34;color:#75715e&#34;&gt;#send this exact string, &lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;scope&amp;#34;&lt;/span&gt; : &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;name email&amp;#34;&lt;/span&gt;,
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;response_mode&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;form_post&amp;#34;&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        }
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; HttpResponseRedirect(&lt;span style=&#34;color:#e6db74&#34;&gt;f&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;https://appleid.apple.com/auth/authorize?&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;{&lt;/span&gt;urlencode(params)&lt;span style=&#34;color:#e6db74&#34;&gt;}&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&lt;/span&gt;)
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;</description>
-      <content>&lt;p&gt;This is some content&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;class&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;AppleLogin&lt;/span&gt;(View):
-&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get&lt;/span&gt;(self, request):
-&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        params &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ol start=&#34;7&#34;&gt;
+&lt;li&gt;Once the sign in process has concluded, on a high level, the following steps take place:
+&lt;ul&gt;
+&lt;li&gt;Apple sends an authorization token to your application’s endpoint.&lt;/li&gt;
+&lt;li&gt;You generate a JWT signed with the private key you downloaded earlier.&lt;/li&gt;
+&lt;li&gt;This JWT is sent back to apple via a post request, along with the authorization code you received earlier.	- If all goes well, apple responds with a JSON object that contains a JWT (id_token) with the user’s details.&lt;/li&gt;
+&lt;li&gt;You can verify the signature of this JWT using apple’s public keys available at &lt;a href=&#34;https://appleid.apple.com/auth/keys&#34;&gt;https://appleid.apple.com/auth/keys&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;7.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Get the authorization code from Apple by retrieving the &lt;code&gt;code&lt;/code&gt; key-value pair from the POST dictionary. This token will later be exchanged for a JWT from apple containing the user’s details.&lt;/li&gt;
+&lt;li&gt;before the token exchange can take place, Apple needs a way to verify if the request to exchange tokens is actually coming from your registered application.
+This is achieved by sending a JWT signed with our &lt;code&gt;private key&lt;/code&gt; in addition to the &lt;code&gt;authorization code&lt;/code&gt; in our post request to Apple’s token endpoint (&lt;a href=&#34;https://appleid.apple.com/auth/token&#34;&gt;https://appleid.apple.com/auth/token&lt;/a&gt;)&lt;/li&gt;
+&lt;li&gt;Now that we have both the authorization token and our JWT (client_secret), the prerequisites for token exchange are fulfilled.&lt;/li&gt;
+&lt;li&gt;send a &lt;code&gt;post request&lt;/code&gt; to &lt;code&gt;https://appleid.apple.com/auth/token&lt;/code&gt; with the following fields in the payload.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;&amp;#34;client_id&amp;#34;: your apple client id (service id)
+
+&amp;#34;client_secret&amp;#34;: the jwt you signed with your private key
+
+&amp;#34;code&amp;#34;: authorization code from apple
+
+&amp;#34;grant_type&amp;#34;: &amp;#34;authorization_code&amp;#34; (send this exact string)
+
+&amp;#34;redirect_uri&amp;#34;: the redirect uri you set on the developer console
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Content type in the headers &lt;strong&gt;MUST&lt;/strong&gt; be set to to &lt;code&gt;application/x-www-form-urlencoded&lt;/code&gt;. &lt;code&gt;application/form-data&lt;/code&gt; or any other MIME type for that matter, will NOT work.&lt;/p&gt;
+&lt;p&gt;If everything goes well, you’ll receive a response from Apple with a body that looks something like this:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-json&#34; data-lang=&#34;json&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;{
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;access_token&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&amp;lt;access token here&amp;gt;&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;token_type&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Bearer&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;expires_in&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#ae81ff&#34;&gt;3600&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;refresh_token&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&amp;lt;refresh token here&amp;gt;&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;id_token&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&amp;lt;id token here&amp;gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;}
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The &lt;code&gt;id_token&lt;/code&gt; key holds the JWT encoded with the user’s details. Decoding this JWT should give the following a result in the following format.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-json&#34; data-lang=&#34;json&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;{
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;  &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;iss&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;https://appleid.apple.com&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;  &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;aud&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;com.zemuria.test&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;  &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;exp&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#ae81ff&#34;&gt;1733295098&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;  &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;iat&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#ae81ff&#34;&gt;1733208698&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;  &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;sub&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;101549.1a31c4cf89484d0797s4b113fd14db7.0833&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;  &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;at_hash&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;-oF09Dzjbiiymu0wnG_ZnQ&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;  &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;email&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;example@gmail.com&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;  &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;email_verified&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#66d9ef&#34;&gt;true&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;  &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;auth_time&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#ae81ff&#34;&gt;1733208696&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;  &lt;span style=&#34;color:#f92672&#34;&gt;&amp;#34;nonce_supported&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#66d9ef&#34;&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;}
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This should effectively be the end of the sign in with apple process but how would know if the JWT your endpoint received is actually sent by apple?
+Best practice here would be to ensure that the JWT you got is sent from Apple by verifying the JWT’s signature using one of Apple’s JSON Web Keys (JWK’s) at: &lt;code&gt;https://appleid.apple.com/auth/keys&lt;/code&gt;&lt;/p&gt;
+&lt;h1 id=&#34;verifying-the-jwt-signature&#34;&gt;Verifying the JWT signature&lt;/h1&gt;
+&lt;p&gt;Apple uses the &lt;code&gt;RS256 algorithm&lt;/code&gt; to sign and verify their JWT’s, which means we’ll have to create an RSA public key using the &lt;code&gt;n&lt;/code&gt; and &lt;code&gt;e&lt;/code&gt; fields from the Apple JWK’s.&lt;/p&gt;
+&lt;p&gt;This is fairly straightforward to achieve using the cryptography library in python.
+Convert the resulting public key to PEM format and use it to decode the JWT.
+If all goes well, you should now have the JWT’s payload with a couple of other keys as well.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;class&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;AppleOauthCallback&lt;/span&gt;(View):
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;post&lt;/span&gt;(self, request):
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        print(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;webapp callback&amp;#34;&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        authorization_code &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; request&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;POST[&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;code&amp;#34;&lt;/span&gt;]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;not&lt;/span&gt; authorization_code:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; HttpResponse(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;authorization code not found&amp;#34;&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        token_url &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;https://appleid.apple.com/auth/token&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        client_secret &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; self&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;generate_client_key()
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        data &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; {
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;client_id&amp;#34;&lt;/span&gt;: getattr(settings, &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;APPLE_CLIENT_ID&amp;#34;&lt;/span&gt;),
-&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;redirect_uri&amp;#34;&lt;/span&gt; : getattr(settings, &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;APPLE_REDIRECT_URI&amp;#34;&lt;/span&gt;),
-&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;response_type&amp;#34;&lt;/span&gt; : &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;code&amp;#34;&lt;/span&gt;, &lt;span style=&#34;color:#75715e&#34;&gt;#authorization code from apple&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;scope&amp;#34;&lt;/span&gt; : &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;name email&amp;#34;&lt;/span&gt;,
-&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;response_mode&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;form_post&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;client_secret&amp;#34;&lt;/span&gt;: client_secret,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;code&amp;#34;&lt;/span&gt;: authorization_code,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;grant_type&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;authorization_code&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;redirect_uri&amp;#34;&lt;/span&gt;: getattr(settings, &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;APPLE_REDIRECT_URI&amp;#34;&lt;/span&gt;)
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        }
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; HttpResponseRedirect(&lt;span style=&#34;color:#e6db74&#34;&gt;f&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;https://appleid.apple.com/auth/authorize?&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;{&lt;/span&gt;urlencode(params)&lt;span style=&#34;color:#e6db74&#34;&gt;}&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&lt;/span&gt;)
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;</content>
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        headers &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; {&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Content-Type&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;application/x-www-form-urlencoded&amp;#34;&lt;/span&gt;}
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        token_exchange_response &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; requests&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;post(token_url, data &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; data, headers &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; headers)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        token_exchange_response &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; token_exchange_response&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;json()
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        public_keys_response &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; requests&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;get(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;https://appleid.apple.com/auth/keys&amp;#34;&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        apple_pubic_keys &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; json&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;loads(public_keys_response&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;text)[&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;keys&amp;#34;&lt;/span&gt;] &lt;span style=&#34;color:#75715e&#34;&gt;#apple public keys&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        jwt_header &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; jwt&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;get_unverified_header(token_exchange_response[&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;id_token&amp;#34;&lt;/span&gt;]) &lt;span style=&#34;color:#75715e&#34;&gt;#get header from id_token jwt&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        key_id &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; jwt_header[&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;kid&amp;#34;&lt;/span&gt;]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        public_key_data &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; next(key &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; key &lt;span style=&#34;color:#f92672&#34;&gt;in&lt;/span&gt; apple_pubic_keys &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; key[&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;kid&amp;#34;&lt;/span&gt;] &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; key_id)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#75715e&#34;&gt;#Convert JWK to RSA Public Key&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        n &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; int&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;from_bytes(base64url_decode(public_key_data[&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;n&amp;#34;&lt;/span&gt;]), &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;big&amp;#34;&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        e &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; int&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;from_bytes(base64url_decode(public_key_data[&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;e&amp;#34;&lt;/span&gt;]), &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;big&amp;#34;&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        public_key &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; RSAPublicNumbers(n&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;n, e&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;e)&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;public_key(default_backend())
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        public_key_pem &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; public_key&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;public_bytes(
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                encoding&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;Encoding&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;PEM,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                format&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;PublicFormat&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;SubjectPublicKeyInfo,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            )
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                              
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        user_data &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; jwt&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;decode(
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            key &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; public_key_pem,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            verify &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;True&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            jwt &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; token_exchange_response[&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;id_token&amp;#34;&lt;/span&gt;],
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            algorithms &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; [&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;RS256&amp;#34;&lt;/span&gt;],
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            options &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;verify_signature&amp;#34;&lt;/span&gt;: &lt;span style=&#34;color:#66d9ef&#34;&gt;True&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            }
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        )
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        user_email &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; user_data&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;get(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;email&amp;#34;&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        user_name &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; user_email&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;split(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;@&amp;#39;&lt;/span&gt;)[&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        user &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; User&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;objects&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;filter(email &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; user_data&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;get(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;email&amp;#34;&lt;/span&gt;))&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;first()
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;not&lt;/span&gt; user:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            user_data[&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;password&amp;#39;&lt;/span&gt;] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            user_data[&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;name&amp;#39;&lt;/span&gt;] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; user_name
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            user_data[&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;picture&amp;#39;&lt;/span&gt;] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;None&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            user, user_data &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; LoginView()&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;create_user(user_data, &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;apple&amp;#39;&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        login(request, user)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; redirect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;notes&amp;#34;&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#75715e&#34;&gt;# return JsonResponse({&amp;#34;email&amp;#34; : user_email}, status = 200)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;def&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;generate_client_key&lt;/span&gt;(self):
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        headers &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;alg&amp;#34;&lt;/span&gt; : &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;ES256&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;kid&amp;#34;&lt;/span&gt; : getattr(settings, &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;APPLE_PRIV_KEY_ID&amp;#34;&lt;/span&gt;),
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;typ&amp;#34;&lt;/span&gt; : &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;JWT&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        }
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        payload &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;iss&amp;#34;&lt;/span&gt; : getattr(settings, &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;APPLE_TEAM_ID&amp;#34;&lt;/span&gt;),
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;iat&amp;#34;&lt;/span&gt; : int(timezone&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;now()&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;timestamp()),
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;exp&amp;#34;&lt;/span&gt; : int((timezone&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;now() &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; timezone&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;timedelta(days&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;))&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;timestamp()),
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;aud&amp;#34;&lt;/span&gt; : &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;https://appleid.apple.com&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;sub&amp;#34;&lt;/span&gt; : getattr(settings, &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;APPLE_CLIENT_ID&amp;#34;&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        }
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        private_key &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; getattr(settings, &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;APPLE_PRIVATE_KEY&amp;#34;&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        encoded_string &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; jwt&lt;span style=&#34;color:#f92672&#34;&gt;.&lt;/span&gt;encode(
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            payload&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;payload,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            key&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;private_key,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            algorithm&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;ES256&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;            headers&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;headers
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        )
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; encoded_string
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Tips:
+Include you private key as a pem file instead of directly putting it in your env. Read the pem file using the os library
+Setting up mkcert and nginx to create and host a self signed SSL secure url&lt;/p&gt;
+</content>
     </item>
     
   </channel>
