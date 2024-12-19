@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
   
     <title>Integrating sign in with Apple with your Django project :: srijan&#39;s blog</title>
   
@@ -11,7 +11,7 @@
 
   <meta name="robots" content="noodp" />
 
-<link rel="canonical" href="../../posts/siwa/" />
+<link rel="canonical" href="//localhost:1313/posts/siwa/" />
 
 
 
@@ -23,7 +23,7 @@
   
   
   
-  <link rel="stylesheet" href="../../styles.css">
+  <link rel="stylesheet" href="//localhost:1313/styles.css">
 
 
 
@@ -31,8 +31,8 @@
 
 
 
-  <link rel="shortcut icon" href="../../img/theme-colors/orange.png">
-  <link rel="apple-touch-icon" href="../../img/theme-colors/orange.png">
+  <link rel="shortcut icon" href="//localhost:1313/img/theme-colors/orange.png">
+  <link rel="apple-touch-icon" href="//localhost:1313/img/theme-colors/orange.png">
 
 
 
@@ -44,12 +44,12 @@
 <meta property="og:type" content="article" />
 <meta property="og:title" content="Integrating sign in with Apple with your Django project">
 <meta property="og:description" content="Guide to setting up Sign in with Apple for your Django project" />
-<meta property="og:url" content="/posts/siwa/" />
+<meta property="og:url" content="//localhost:1313/posts/siwa/" />
 <meta property="og:site_name" content="srijan&#39;s blog" />
 
   
   
-  <meta property="og:image" content="/">
+  <meta property="og:image" content="//localhost:1313/">
 
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="627">
@@ -83,7 +83,7 @@
   <header class="header">
   <div class="header__inner">
     <div class="header__logo">
-      <a href="../../">
+      <a href="//localhost:1313/">
   <div class="logo">
     srijan&#39;s blog
   </div>
@@ -101,18 +101,18 @@
     
 <article class="post">
   <h1 class="post-title">
-    <a href="../../posts/siwa/">Integrating sign in with Apple with your Django project</a>
+    <a href="//localhost:1313/posts/siwa/">Integrating sign in with Apple with your Django project</a>
   </h1>
   <div class="post-meta"><time class="post-date">2024-12-19</time><span class="post-author">Srijan</span>
     
-<span class="post-reading-time">7 min read (1391 words)</span></div>
+<span class="post-reading-time">7 min read (1416 words)</span></div>
 
   
     <span class="post-tags">
       
-      #<a href="../../tags/"></a>&nbsp;
+      #<a href="//localhost:1313/tags/"></a>&nbsp;
       
-      #<a href="../../tags/"></a>&nbsp;
+      #<a href="//localhost:1313/tags/"></a>&nbsp;
       
     </span>
   
@@ -123,8 +123,10 @@
   
 
   <div class="post-content"><div>
-        <p>Apple’s documentation is pretty obscure, so here’s a comprehensive guide on integrating apple’s “Sign in with Apple” feature with your Django backend.</p>
-<p>We will not be using Django-allauth or any external library for that matter, for the simple reason that a library as large as allauth is simply too overkill for our usecase.</p>
+        <p>Apple’s documentation is pretty obscure, so here’s a comprehensive guide on integrating apple’s “Sign in with Apple” feature with your Django backend <em>without</em> using external libraries like Django-allauth.</p>
+<blockquote>
+<p>Why avoid Django-allauth? While it&rsquo;s a powerful library, it can be overkill for this specific use case. We&rsquo;ll implement a clean, minimal solution instead.</p>
+</blockquote>
 <p>Apple uses oauth2.0, even though its not explicitly mentioned in the docs, so if that’s something you’re already familiar with, this shouldn’t be too difficult.</p>
 <ol>
 <li>
@@ -206,11 +208,36 @@ That concludes the setup on Apple’s side of things.</li>
 </ol>
 <p>Let’s now take a look at how we should go about integrating this without our Django backend.
 6.	To initiate the Apple login process, you first have to redirect your user to the following link <a href="https://appleid.apple.com/auth/authorize">https://appleid.apple.com/auth/authorize</a>. The following data must be sent as query parameters to Apple.</p>
-<p>&ldquo;client_id&rdquo;: getattr(settings, &ldquo;APPLE_CLIENT_ID&rdquo;)</p>
-<p>&ldquo;redirect_uri&rdquo; : getattr(settings, &ldquo;APPLE_REDIRECT_URI&rdquo;)</p>
-<p>&ldquo;response_type&rdquo; : &ldquo;code&rdquo;,</p>
-<p>&ldquo;scope&rdquo; : &ldquo;email&rdquo;</p>
-<p>&ldquo;response_mode&rdquo;: &ldquo;form_post&rdquo;</p>
+<table>
+  <thead>
+      <tr>
+          <th>Attribute</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>client_id</td>
+          <td>your apple client id (service id)</td>
+      </tr>
+      <tr>
+          <td>redirect_uri</td>
+          <td>endpoint to your application set in the console</td>
+      </tr>
+      <tr>
+          <td>response_type</td>
+          <td>&ldquo;code&rdquo; (send this exact string)</td>
+      </tr>
+      <tr>
+          <td>scope</td>
+          <td>&ldquo;email&rdquo; (send this exact string)</td>
+      </tr>
+      <tr>
+          <td>response_mode</td>
+          <td>“form_post”</td>
+      </tr>
+  </tbody>
+</table>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">AppleLogin</span>(View):
 </span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">get</span>(self, request):
 </span></span><span style="display:flex;"><span>        params <span style="color:#f92672">=</span> {
@@ -240,16 +267,37 @@ This is achieved by sending a JWT signed with our <code>private key</code> in ad
 <li>Now that we have both the authorization token and our JWT (client_secret), the prerequisites for token exchange are fulfilled.</li>
 <li>send a <code>post request</code> to <code>https://appleid.apple.com/auth/token</code> with the following fields in the payload.</li>
 </ul>
-<pre tabindex="0"><code>&#34;client_id&#34;: your apple client id (service id)
-
-&#34;client_secret&#34;: the jwt you signed with your private key
-
-&#34;code&#34;: authorization code from apple
-
-&#34;grant_type&#34;: &#34;authorization_code&#34; (send this exact string)
-
-&#34;redirect_uri&#34;: the redirect uri you set on the developer console
-</code></pre><p>Content type in the headers <strong>MUST</strong> be set to to <code>application/x-www-form-urlencoded</code>. <code>application/form-data</code> or any other MIME type for that matter, will NOT work.</p>
+<table>
+  <thead>
+      <tr>
+          <th>Attribute</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>client_id</td>
+          <td>your apple client id (service id)</td>
+      </tr>
+      <tr>
+          <td>client_secret</td>
+          <td>the jwt you signed with your private key</td>
+      </tr>
+      <tr>
+          <td>code</td>
+          <td>tauthorization code from apple</td>
+      </tr>
+      <tr>
+          <td>grant_type</td>
+          <td>&ldquo;authorization_code&rdquo; (send this exact string)</td>
+      </tr>
+      <tr>
+          <td>redirect_uri</td>
+          <td>the redirect uri you set on the developer console</td>
+      </tr>
+  </tbody>
+</table>
+<p>Content type in the headers <strong>MUST</strong> be set to to <code>application/x-www-form-urlencoded</code>. <code>application/form-data</code> or any other MIME type for that matter, will <strong>NOT</strong> work.</p>
 <p>If everything goes well, you’ll receive a response from Apple with a body that looks something like this:</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;access_token&#34;</span>: <span style="color:#e6db74">&#34;&lt;access token here&gt;&#34;</span>,
@@ -260,20 +308,20 @@ This is achieved by sending a JWT signed with our <code>private key</code> in ad
 </span></span><span style="display:flex;"><span>}
 </span></span></code></pre></div><p>The <code>id_token</code> key holds the JWT encoded with the user’s details. Decoding this JWT should give the following a result in the following format.</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;iss&#34;</span>: <span style="color:#e6db74">&#34;https://appleid.apple.com&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;aud&#34;</span>: <span style="color:#e6db74">&#34;com.zemuria.test&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;exp&#34;</span>: <span style="color:#ae81ff">1733295098</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;iat&#34;</span>: <span style="color:#ae81ff">1733208698</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;sub&#34;</span>: <span style="color:#e6db74">&#34;101549.1a31c4cf89484d0797s4b113fd14db7.0833&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;at_hash&#34;</span>: <span style="color:#e6db74">&#34;-oF09Dzjbiiymu0wnG_ZnQ&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;email&#34;</span>: <span style="color:#e6db74">&#34;example@gmail.com&#34;</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;email_verified&#34;</span>: <span style="color:#66d9ef">true</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;auth_time&#34;</span>: <span style="color:#ae81ff">1733208696</span>,
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;nonce_supported&#34;</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;iss&#34;</span>: <span style="color:#e6db74">&#34;https://appleid.apple.com&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;aud&#34;</span>: <span style="color:#e6db74">&#34;com.zemuria.test&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;exp&#34;</span>: <span style="color:#ae81ff">1733295098</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;iat&#34;</span>: <span style="color:#ae81ff">1733208698</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;sub&#34;</span>: <span style="color:#e6db74">&#34;101549.1a31c4cf89484d0797s4b113fd14db7.0833&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;at_hash&#34;</span>: <span style="color:#e6db74">&#34;-oF09Dzjbiiymu0wnG_ZnQ&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;email&#34;</span>: <span style="color:#e6db74">&#34;example@gmail.com&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;email_verified&#34;</span>: <span style="color:#66d9ef">true</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;auth_time&#34;</span>: <span style="color:#ae81ff">1733208696</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;nonce_supported&#34;</span>: <span style="color:#66d9ef">true</span>
 </span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><p>This should effectively be the end of the sign in with apple process but how would know if the JWT your endpoint received is actually sent by apple?
-Best practice here would be to ensure that the JWT you got is sent from Apple by verifying the JWT’s signature using one of Apple’s JSON Web Keys (JWK’s) at: <code>https://appleid.apple.com/auth/keys</code></p>
-<h1 id="verifying-the-jwt-signature">Verifying the JWT signature<a href="#verifying-the-jwt-signature" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+</span></span></code></pre></div><h1 id="verifying-the-jwt-signature">Verifying the JWT signature<a href="#verifying-the-jwt-signature" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>That should effectively be the end of the sign in with apple process but how would know if the JWT your endpoint received is actually sent by apple?</p>
+<p>Best practice here would be to ensure that the JWT you got, is sent from Apple by verifying the JWT’s signature using one of Apple’s JSON Web Keys (JWK’s) at: <code>https://appleid.apple.com/auth/keys</code>.</p>
 <p>Apple uses the <code>RS256 algorithm</code> to sign and verify their JWT’s, which means we’ll have to create an RSA public key using the <code>n</code> and <code>e</code> fields from the Apple JWK’s.</p>
 <p>This is fairly straightforward to achieve using the cryptography library in python.
 Convert the resulting public key to PEM format and use it to decode the JWT.
@@ -363,9 +411,15 @@ If all goes well, you should now have the JWT’s payload with a couple of other
 </span></span><span style="display:flex;"><span>            headers<span style="color:#f92672">=</span>headers
 </span></span><span style="display:flex;"><span>        )
 </span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> encoded_string
-</span></span></code></pre></div><p>Tips:
-Include you private key as a pem file instead of directly putting it in your env. Read the pem file using the os library
-Setting up mkcert and nginx to create and host a self signed SSL secure url</p>
+</span></span></code></pre></div><p>Tips:</p>
+<ul>
+<li>
+<p>Paste your private key into a <code>.pem</code> file instead of directly placing it in your env. Read the pem file using the os library</p>
+</li>
+<li>
+<p>Make sure to follow all the way through and click save to make sure your <code>redirect URIs</code> register in the developer console</p>
+</li>
+</ul>
 
       </div></div>
 
