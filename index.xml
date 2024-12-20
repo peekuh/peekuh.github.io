@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>srijan&#39;s blog</title>
-    <link>//localhost:1313/</link>
+    <link>/</link>
     <description>Recent content on srijan&#39;s blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
-    <lastBuildDate>Sat, 21 Dec 2024 01:40:03 +0530</lastBuildDate><atom:link href="//localhost:1313/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sat, 21 Dec 2024 01:40:03 +0530</lastBuildDate><atom:link href="/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Integrating sign in with Apple with your Django project</title>
-      <link>//localhost:1313/posts/siwa/</link>
+      <link>/posts/siwa/</link>
       <pubDate>Thu, 19 Dec 2024 13:05:55 +0530</pubDate>
       
-      <guid>//localhost:1313/posts/siwa/</guid>
+      <guid>/posts/siwa/</guid>
       <description>&lt;p&gt;Apple’s documentation is pretty obscure, so here’s a comprehensive guide on integrating apple’s “Sign in with Apple” feature with your Django backend &lt;em&gt;without&lt;/em&gt; using external libraries like Django-allauth.&lt;/p&gt;
 &lt;blockquote&gt;
 &lt;p&gt;Why avoid Django-allauth? While it&amp;rsquo;s a powerful library, it can be overkill for this specific use case. We&amp;rsquo;ll implement a clean, minimal solution instead.&lt;/p&gt;
