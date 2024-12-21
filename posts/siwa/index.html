@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
   
-    <title>Integrating sign in with Apple with your Django project :: srijan&#39;s blog</title>
+    <title>Integrating &#39;Sign in with Apple&#39; into your Django project *without all-auth* :: srijan&#39;s blog</title>
   
   <meta http-equiv="content-type" content="text/html; charset=utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Guide to setting up Sign in with Apple for your Django project" />
+<meta name="description" content="" />
 <meta name="keywords" content="srijan, django" />
 
   <meta name="robots" content="noodp" />
 
-<link rel="canonical" href="../../posts/siwa/" />
+<link rel="canonical" href="//localhost:1313/posts/siwa/" />
 
 
 
@@ -23,7 +23,7 @@
   
   
   
-  <link rel="stylesheet" href="../../styles.css">
+  <link rel="stylesheet" href="//localhost:1313/styles.css">
 
 
 
@@ -31,8 +31,8 @@
 
 
 
-  <link rel="shortcut icon" href="../../img/theme-colors/orange.png">
-  <link rel="apple-touch-icon" href="../../img/theme-colors/orange.png">
+  <link rel="shortcut icon" href="//localhost:1313/img/theme-colors/orange.png">
+  <link rel="apple-touch-icon" href="//localhost:1313/img/theme-colors/orange.png">
 
 
 
@@ -42,14 +42,14 @@
 
 <meta property="og:locale" content="en" />
 <meta property="og:type" content="article" />
-<meta property="og:title" content="Integrating sign in with Apple with your Django project">
-<meta property="og:description" content="Guide to setting up Sign in with Apple for your Django project" />
-<meta property="og:url" content="/posts/siwa/" />
+<meta property="og:title" content="Integrating &#39;Sign in with Apple&#39; into your Django project *without all-auth*">
+<meta property="og:description" content="" />
+<meta property="og:url" content="//localhost:1313/posts/siwa/" />
 <meta property="og:site_name" content="srijan&#39;s blog" />
 
   
   
-  <meta property="og:image" content="/sign-in-with-apple-og.jpg">
+  <meta property="og:image" content="//localhost:1313/sign-in-with-apple-og.jpg">
 
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="627">
@@ -83,7 +83,7 @@
   <header class="header">
   <div class="header__inner">
     <div class="header__logo">
-      <a href="../../">
+      <a href="//localhost:1313/">
   <div class="logo">
     srijan&#39;s blog
   </div>
@@ -131,16 +131,16 @@
     
 <article class="post">
   <h1 class="post-title">
-    <a href="../../posts/siwa/">Integrating sign in with Apple with your Django project</a>
+    <a href="//localhost:1313/posts/siwa/">Integrating &lsquo;Sign in with Apple&rsquo; into your Django project <em>without all-auth</em></a>
   </h1>
   <div class="post-meta"><time class="post-date">2024-12-19</time><span class="post-author">Srijan</span>
     
-<span class="post-reading-time">7 min read (1388 words)</span></div>
+<span class="post-reading-time">7 min read (1392 words)</span></div>
 
   
   
     
-    <img src="../../sign-in-with-apple-og.jpg"
+    <img src="//localhost:1313/sign-in-with-apple-og.jpg"
       class="post-cover"
       alt=" "
       title="Cover Image" />
@@ -167,7 +167,7 @@
 <p>Once you have access to the developer console, make an App ID <a href="https://developer.apple.com/account/resources/identifiers/list">(list of identifiers)</a></p>
 <ul>
 <li>This is fairly straight forward, just make sure you select <em>Sign in with apple</em> under the “Capabilities” section.</li>
-<li>Note: Your bundle ID needs to be unique, i.e you cannot have multiple App ID’s or service ID’s with the same bundle ID.</li>
+<li><strong>Note</strong>: Your bundle ID needs to be unique, i.e you cannot have multiple App ID’s or service ID’s with the same bundle ID.</li>
 </ul>
 </li>
 <li>
@@ -184,8 +184,8 @@
 <p>You’ll see the following page open,</p>
 </li>
 </ul>
-<p><img src="../../4.png" alt="Scenario 1: Across columns">
-keep the “sign in with apple” box checked and click the configure button</p>
+<p><img src="../../4.png" alt="Scenario 1: Across columns"></p>
+<p>keep the “sign in with apple” box checked and click the configure button</p>
 <ul>
 <li>You should see the following pop up</li>
 </ul>
@@ -239,8 +239,11 @@ That concludes the setup on Apple’s side of things.</li>
 </ul>
 </li>
 </ol>
-<p>Let’s now take a look at how we should go about integrating this without our Django backend.
-6.	To initiate the Apple login process, you first have to redirect your user to the following link <a href="https://appleid.apple.com/auth/authorize">https://appleid.apple.com/auth/authorize</a>. The following data must be sent as query parameters to Apple.</p>
+<p>Let’s now take a look at how we should go about integrating this without our Django backend.</p>
+<h2 id="setting-up-your-django-backend">Setting up your Django backend<a href="#setting-up-your-django-backend" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<ol start="6">
+<li>To initiate the Apple login process, you first have to redirect your user to the following link <a href="https://appleid.apple.com/auth/authorize">https://appleid.apple.com/auth/authorize</a>. The following data must be sent as query parameters to Apple.</li>
+</ol>
 <table>
   <thead>
       <tr>

@@ -2,22 +2,18 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Posts on srijan&#39;s blog</title>
-    <link>/posts/</link>
+    <link>//localhost:1313/posts/</link>
     <description>Recent content in Posts on srijan&#39;s blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
-    <lastBuildDate>Thu, 19 Dec 2024 13:05:55 +0530</lastBuildDate><atom:link href="/posts/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Thu, 19 Dec 2024 13:05:55 +0530</lastBuildDate><atom:link href="//localhost:1313/posts/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Integrating sign in with Apple with your Django project</title>
-      <link>/posts/siwa/</link>
+      <title>Integrating &#39;Sign in with Apple&#39; into your Django project *without all-auth*</title>
+      <link>//localhost:1313/posts/siwa/</link>
       <pubDate>Thu, 19 Dec 2024 13:05:55 +0530</pubDate>
       
-      <guid>/posts/siwa/</guid>
-      <description>&lt;p&gt;Apple’s documentation is pretty obscure, so here’s a comprehensive guide on integrating apple’s “Sign in with Apple” feature with your Django backend &lt;em&gt;without&lt;/em&gt; using external libraries like Django-allauth.&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;Why avoid Django-allauth? While it&amp;rsquo;s a powerful library, it can be overkill for this specific use case. We&amp;rsquo;ll implement a clean, minimal solution instead.&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;p&gt;Apple uses oauth2.0, even though its not explicitly mentioned in the docs, so if that’s something you’re already familiar with, this shouldn’t be too difficult.&lt;/p&gt;</description>
+      <guid>//localhost:1313/posts/siwa/</guid>
+      <description></description>
       <content>&lt;p&gt;Apple’s documentation is pretty obscure, so here’s a comprehensive guide on integrating apple’s “Sign in with Apple” feature with your Django backend &lt;em&gt;without&lt;/em&gt; using external libraries like Django-allauth.&lt;/p&gt;
 &lt;blockquote&gt;
 &lt;p&gt;Why avoid Django-allauth? While it&amp;rsquo;s a powerful library, it can be overkill for this specific use case. We&amp;rsquo;ll implement a clean, minimal solution instead.&lt;/p&gt;
