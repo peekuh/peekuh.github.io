@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Posts on srijan&#39;s blog</title>
-    <link>//localhost:1313/posts/</link>
+    <link>/posts/</link>
     <description>Recent content in Posts on srijan&#39;s blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
-    <lastBuildDate>Thu, 19 Dec 2024 13:05:55 +0530</lastBuildDate><atom:link href="//localhost:1313/posts/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Thu, 19 Dec 2024 13:05:55 +0530</lastBuildDate><atom:link href="/posts/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Integrating &#39;Sign in with Apple&#39; into your Django project *without all-auth*</title>
-      <link>//localhost:1313/posts/siwa/</link>
+      <link>/posts/siwa/</link>
       <pubDate>Thu, 19 Dec 2024 13:05:55 +0530</pubDate>
       
-      <guid>//localhost:1313/posts/siwa/</guid>
+      <guid>/posts/siwa/</guid>
       <description></description>
       <content>&lt;p&gt;Apple’s documentation is pretty obscure, so here’s a comprehensive guide on integrating apple’s “Sign in with Apple” feature with your Django backend &lt;em&gt;without&lt;/em&gt; using external libraries like Django-allauth.&lt;/p&gt;
 &lt;blockquote&gt;
@@ -30,7 +30,7 @@
 &lt;p&gt;Once you have access to the developer console, make an App ID &lt;a href=&#34;https://developer.apple.com/account/resources/identifiers/list&#34;&gt;(list of identifiers)&lt;/a&gt;&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;This is fairly straight forward, just make sure you select &lt;em&gt;Sign in with apple&lt;/em&gt; under the “Capabilities” section.&lt;/li&gt;
-&lt;li&gt;Note: Your bundle ID needs to be unique, i.e you cannot have multiple App ID’s or service ID’s with the same bundle ID.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Note&lt;/strong&gt;: Your bundle ID needs to be unique, i.e you cannot have multiple App ID’s or service ID’s with the same bundle ID.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/li&gt;
 &lt;li&gt;
@@ -47,8 +47,8 @@
 &lt;p&gt;You’ll see the following page open,&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;&lt;img src=&#34;../4.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;
-keep the “sign in with apple” box checked and click the configure button&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;../4.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;&lt;/p&gt;
+&lt;p&gt;keep the “sign in with apple” box checked and click the configure button&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;You should see the following pop up&lt;/li&gt;
 &lt;/ul&gt;
@@ -102,8 +102,11 @@ That concludes the setup on Apple’s side of things.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/li&gt;
 &lt;/ol&gt;
-&lt;p&gt;Let’s now take a look at how we should go about integrating this without our Django backend.
-6.	To initiate the Apple login process, you first have to redirect your user to the following link &lt;a href=&#34;https://appleid.apple.com/auth/authorize&#34;&gt;https://appleid.apple.com/auth/authorize&lt;/a&gt;. The following data must be sent as query parameters to Apple.&lt;/p&gt;
+&lt;p&gt;Let’s now take a look at how we should go about integrating this without our Django backend.&lt;/p&gt;
+&lt;h2 id=&#34;setting-up-your-django-backend&#34;&gt;Setting up your Django backend&lt;/h2&gt;
+&lt;ol start=&#34;6&#34;&gt;
+&lt;li&gt;To initiate the Apple login process, you first have to redirect your user to the following link &lt;a href=&#34;https://appleid.apple.com/auth/authorize&#34;&gt;https://appleid.apple.com/auth/authorize&lt;/a&gt;. The following data must be sent as query parameters to Apple.&lt;/li&gt;
+&lt;/ol&gt;
 &lt;table&gt;
   &lt;thead&gt;
       &lt;tr&gt;
