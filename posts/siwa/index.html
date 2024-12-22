@@ -135,7 +135,7 @@
   </h1>
   <div class="post-meta"><time class="post-date">2024-12-19</time><span class="post-author">Srijan</span>
     
-<span class="post-reading-time">7 min read (1392 words)</span></div>
+<span class="post-reading-time">7 min read (1412 words)</span></div>
 
   
   
@@ -156,6 +156,8 @@
 <p>Why avoid Django-allauth? While it&rsquo;s a powerful library, it can be overkill for this specific use case. We&rsquo;ll implement a clean, minimal solution instead.</p>
 </blockquote>
 <p>Apple uses oauth2.0, even though its not explicitly mentioned in the docs, so if that’s something you’re already familiar with, this shouldn’t be too difficult.</p>
+<p>Let&rsquo;s start with the things you need to setup on your <a href="https://developer.apple.com/">Apple developer console</a></p>
+<h2 id="setting-up-your-apple-developer-account">Setting up your Apple developer account<a href="#setting-up-your-apple-developer-account" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
 <ol>
 <li>
 <p>Enroll into the Apple developer program</p>
@@ -196,7 +198,7 @@
 <p>For Samantha, our “domains and subdomains” section would contain : mysamantha.ai
 And our Return URL’s section should contain: <code>https://mysamantha.ai/account/apple/callback</code></p>
 <p>Notice how the return url is prefixed with https.
-Now, Apple being apple, does <strong>NOT</strong> allow you to use domains without a valid SSL certificate, which means you’ll only be allowed to use return URLs with HTTPS and not http.</p>
+Now, Apple being apple, does <strong>NOT</strong> allow you to use domains without a valid SSL certificate, which means you’ll only be allowed to use return URLs with <code>HTTPS</code> and not <code>HTTP</code>.</p>
 <p>This is can be cumbersome to set for development and testing but its fairly straightforward to use once you have it setup.
 I used <code>mkcert</code> to create a locally signed SSL certificate and <code>nginx</code> as a reverse proxy.</p>
 <p>Now, to make sure that your subdomains and return URLs actually register, make sure you follow the following steps:</p>
@@ -209,9 +211,9 @@ I used <code>mkcert</code> to create a locally signed SSL certificate and <code>
 </ul>
 <p><img src="../../7.png" alt="Scenario 1: Across columns"></p>
 <ul>
-<li>After that step you’ll see this page again.
-<img src="../../4.png" alt="Scenario 1: Across columns"></li>
+<li>After that step you’ll see this page again.</li>
 </ul>
+<p><img src="../../4.png" alt="Scenario 1: Across columns"></p>
 <p>Don’t just stop here, click continue and click save in the following page.</p>
 <p><img src="../../8.png" alt="Scenario 1: Across columns"></p>
 <p>Your configuration URL’s will not be saved otherwise, even if they seem like they’re added in the URL dropdown that looks like this:</p>
@@ -224,7 +226,7 @@ I used <code>mkcert</code> to create a locally signed SSL certificate and <code>
 <p>Click configure and select the App ID that you want to associate the private key with</p>
 </li>
 <li>
-<p>Download the key. Note that this key is deleted from Apple’s servers after you download it so make sure you keep it safe.</p>
+<p>Download the key. Note that this key is deleted from Apple’s servers after you download it, so make sure you keep it safe.</p>
 </li>
 </ul>
 </li>
@@ -234,12 +236,13 @@ I used <code>mkcert</code> to create a locally signed SSL certificate and <code>
 <li>Team ID</li>
 <li>Key ID</li>
 <li>Service ID</li>
-<li>Redirect URI	Private key (.p8 file)
+<li>Redirect URI</li>
+<li>Private key (.p8 file)
 That concludes the setup on Apple’s side of things.</li>
 </ul>
 </li>
 </ol>
-<p>Let’s now take a look at how we should go about integrating this without our Django backend.</p>
+<p>Let’s now take a look at how we should go about integrating this with our Django backend.</p>
 <h2 id="setting-up-your-django-backend">Setting up your Django backend<a href="#setting-up-your-django-backend" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
 <ol start="6">
 <li>To initiate the Apple login process, you first have to redirect your user to the following link <a href="https://appleid.apple.com/auth/authorize">https://appleid.apple.com/auth/authorize</a>. The following data must be sent as query parameters to Apple.</li>

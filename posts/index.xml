@@ -19,6 +19,8 @@
 &lt;p&gt;Why avoid Django-allauth? While it&amp;rsquo;s a powerful library, it can be overkill for this specific use case. We&amp;rsquo;ll implement a clean, minimal solution instead.&lt;/p&gt;
 &lt;/blockquote&gt;
 &lt;p&gt;Apple uses oauth2.0, even though its not explicitly mentioned in the docs, so if that’s something you’re already familiar with, this shouldn’t be too difficult.&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s start with the things you need to setup on your &lt;a href=&#34;https://developer.apple.com/&#34;&gt;Apple developer console&lt;/a&gt;&lt;/p&gt;
+&lt;h2 id=&#34;setting-up-your-apple-developer-account&#34;&gt;Setting up your Apple developer account&lt;/h2&gt;
 &lt;ol&gt;
 &lt;li&gt;
 &lt;p&gt;Enroll into the Apple developer program&lt;/p&gt;
@@ -59,7 +61,7 @@
 &lt;p&gt;For Samantha, our “domains and subdomains” section would contain : mysamantha.ai
 And our Return URL’s section should contain: &lt;code&gt;https://mysamantha.ai/account/apple/callback&lt;/code&gt;&lt;/p&gt;
 &lt;p&gt;Notice how the return url is prefixed with https.
-Now, Apple being apple, does &lt;strong&gt;NOT&lt;/strong&gt; allow you to use domains without a valid SSL certificate, which means you’ll only be allowed to use return URLs with HTTPS and not http.&lt;/p&gt;
+Now, Apple being apple, does &lt;strong&gt;NOT&lt;/strong&gt; allow you to use domains without a valid SSL certificate, which means you’ll only be allowed to use return URLs with &lt;code&gt;HTTPS&lt;/code&gt; and not &lt;code&gt;HTTP&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;This is can be cumbersome to set for development and testing but its fairly straightforward to use once you have it setup.
 I used &lt;code&gt;mkcert&lt;/code&gt; to create a locally signed SSL certificate and &lt;code&gt;nginx&lt;/code&gt; as a reverse proxy.&lt;/p&gt;
 &lt;p&gt;Now, to make sure that your subdomains and return URLs actually register, make sure you follow the following steps:&lt;/p&gt;
@@ -72,9 +74,9 @@ I used &lt;code&gt;mkcert&lt;/code&gt; to create a locally signed SSL certificat
 &lt;/ul&gt;
 &lt;p&gt;&lt;img src=&#34;../7.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;After that step you’ll see this page again.
-&lt;img src=&#34;../4.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;&lt;/li&gt;
+&lt;li&gt;After that step you’ll see this page again.&lt;/li&gt;
 &lt;/ul&gt;
+&lt;p&gt;&lt;img src=&#34;../4.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;&lt;/p&gt;
 &lt;p&gt;Don’t just stop here, click continue and click save in the following page.&lt;/p&gt;
 &lt;p&gt;&lt;img src=&#34;../8.png&#34; alt=&#34;Scenario 1: Across columns&#34;&gt;&lt;/p&gt;
 &lt;p&gt;Your configuration URL’s will not be saved otherwise, even if they seem like they’re added in the URL dropdown that looks like this:&lt;/p&gt;
@@ -87,7 +89,7 @@ I used &lt;code&gt;mkcert&lt;/code&gt; to create a locally signed SSL certificat
 &lt;p&gt;Click configure and select the App ID that you want to associate the private key with&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;Download the key. Note that this key is deleted from Apple’s servers after you download it so make sure you keep it safe.&lt;/p&gt;
+&lt;p&gt;Download the key. Note that this key is deleted from Apple’s servers after you download it, so make sure you keep it safe.&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
 &lt;/li&gt;
@@ -97,12 +99,13 @@ I used &lt;code&gt;mkcert&lt;/code&gt; to create a locally signed SSL certificat
 &lt;li&gt;Team ID&lt;/li&gt;
 &lt;li&gt;Key ID&lt;/li&gt;
 &lt;li&gt;Service ID&lt;/li&gt;
-&lt;li&gt;Redirect URI	Private key (.p8 file)
+&lt;li&gt;Redirect URI&lt;/li&gt;
+&lt;li&gt;Private key (.p8 file)
 That concludes the setup on Apple’s side of things.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/li&gt;
 &lt;/ol&gt;
-&lt;p&gt;Let’s now take a look at how we should go about integrating this without our Django backend.&lt;/p&gt;
+&lt;p&gt;Let’s now take a look at how we should go about integrating this with our Django backend.&lt;/p&gt;
 &lt;h2 id=&#34;setting-up-your-django-backend&#34;&gt;Setting up your Django backend&lt;/h2&gt;
 &lt;ol start=&#34;6&#34;&gt;
 &lt;li&gt;To initiate the Apple login process, you first have to redirect your user to the following link &lt;a href=&#34;https://appleid.apple.com/auth/authorize&#34;&gt;https://appleid.apple.com/auth/authorize&lt;/a&gt;. The following data must be sent as query parameters to Apple.&lt;/li&gt;
