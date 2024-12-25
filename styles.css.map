@@ -1,7 +1,7 @@
 {
 	"version": 3,
 	"file": "styles.css",
-	"sourceRoot": "C:/Users/sarsr/Desktop/blog/peekblog",
+	"sourceRoot": "C:/Users/sarsr/Desktop/personal projects/blog/peekblog",
 	"sources": [
 		"css/base.scss",
 		"themes/re-terminal/assets/css/variables.scss",
