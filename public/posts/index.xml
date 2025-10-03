@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Posts on srijan's blog</title><link>/posts/</link><description>Recent content in Posts on srijan's blog</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 02 Oct 2025 00:00:00 +0000</lastBuildDate><atom:link href="/posts/index.xml" rel="self" type="application/rss+xml"/><item><title>Optimizing a DRF application for I/O bound, AI workloads</title><link>/posts/drf-optimization/</link><pubDate>Thu, 02 Oct 2025 00:00:00 +0000</pubDate><guid>/posts/drf-optimization/</guid><description/><content>&lt;p>DRF is my favourite toolkit for building Web API’s.&lt;/p>
+&lt;p>However, it has one fatal flaw – it does not support async out of the box. This shouldn&amp;rsquo;t be a problem for most use cases but if your application &lt;code>I/O&lt;/code> heavy (basically every GPT wrapper on the market right now), this can be a significant bottleneck.&lt;/p>
+&lt;h3 id="what-causes-this-bottleneck">What causes this bottleneck?&lt;/h3>
+&lt;p>The &lt;code>GIL&lt;/code> prevents more than one thread within a process from executing python bytecode at any given point in time. Which means, while your worker is waiting for a response from an &lt;code>I/O&lt;/code> call (api call to Gemini, Anthropic, Openai etc), it just sits there doing nothing. Any other requests assigned to the worker will have to wait until the first request concludes.&lt;/p>
+&lt;p>There’re a couple of ways to overcome this bottleneck.&lt;/p>
+&lt;p>For starters, you could try increasing the number of workers used by your application server. So when one of your workers is busy waiting for an &lt;code>I/O&lt;/code> call, another worker can handle other requests in the queue.
+This is the easiest form of horizontal scaling. However, workers are “process bound”.&lt;/p>
+&lt;p>A program, (your DRF code) is merely a collection of passive instructions. The active execution of these instructions is called a process.
+Processes have an independent memory space, a copy of the python interpreter, a copy of your application’s code, and most importantly their own &lt;code>GIL&lt;/code>.&lt;/p>
+&lt;p>This means you can only have a finite number of processes running on a CPU at any given time, considering the high resource requirement that processes bring. This finite number is not nearly large enough to handle the scale modern web applications operate at.
+The number of workers you can spawn on a server is usually &lt;code>2n + 1&lt;/code>, where &lt;code>n&lt;/code> is the number of cores on the CPU.&lt;/p>
+&lt;p>&lt;img src="../10.png" alt="Granian worker memory usage">&lt;/p>
+&lt;p>Each &lt;code>pid&lt;/code> corresponds to one Granian (an http server similar to &lt;code>gunicorn&lt;/code>) worker. Notice how each worker takes up between 400 to 600 mb of memory.&lt;/p>
+&lt;p>To put things into perspective, an i9-9900K, a 16 core CPU, would be able to host 33 workers at most.&lt;/p>
+&lt;p>But all of these limitations exist assuming we only have one thread per process. What if we had multiple threads capable of handling multiple requests?&lt;/p>
+&lt;h2 id="preemptive-multitasking">Preemptive multitasking&lt;/h2>
+&lt;p>This is where &lt;code>gunicorn&lt;/code>’s &lt;code>gthread&lt;/code> worker type comes in.
+While thread A waits for a response from a network call, it surrenders the &lt;code>GIL&lt;/code> to thread B. This means thread B is now free to handle other requests. Once thread A’s &lt;code>I/O&lt;/code> operation concludes, it will fall in line behind any other threads that are waiting to acquire the &lt;code>GIL&lt;/code>. Seems like the ideal solution to our problems. WRONG.&lt;/p>
+&lt;p>Hopping threads is a kernel level operation. This means the OS has to context-switch between &lt;code>user-mode&lt;/code> and &lt;code>kernel-mode&lt;/code>. The kernel then has to save the context of the old thread and load the entire context of the new thread before making the switch back to user-mode. This is an accurate, safe but slow operation.&lt;/p>
+&lt;p>So while the &lt;code>gthread&lt;/code> worker type ensures that a worker is not entirely handicapped while doing &lt;code>I/O&lt;/code>, it comes at the cost of having to constantly switch thread between threads, which is not a cheap operation and relies heavily on the kernel and the os scheduler.&lt;/p>
+&lt;p>Note that the &lt;code>GIL&lt;/code> allows only one thread within a process to execute python bytecode at once, so true multithreading (parallelism) for CPU-intensive tasks isn’t possible in python.&lt;/p>
+&lt;h2 id="cooperative-multitasking">Cooperative multitasking&lt;/h2>
+&lt;p>This is where the &lt;code>gunicorn&lt;/code> “&lt;code>gevent&lt;/code>” worker type comes in.
+&lt;code>gevent&lt;/code> “greenlets” are lightweight python objects that can be spawned 100s and thousands of times within a process.&lt;/p>
+&lt;p>Greenlets work on the principle of “cooperative multitasking”. Which means, a greenlet will continue to work on a request, without interruption, until it hits a blocking &lt;code>I/O&lt;/code> call. There’s no external body like the os scheduler or kernel making decisions about when control should be confiscated from one thread and transferred to another.&lt;/p>
+&lt;p>The OS has absolutely no idea that greenlets exist. A “context-swtich” between greenlets is just a function call within the same process. There’s no transition to kernel mode needed to make this happen.&lt;/p>
+&lt;p>Then why would one bother using threads at all?
+While greenlets are incredibly lightweight and dramatically boost your worker’s throughput, there’re no guard rails preventing a greenlet from completely monopolizing the thread it&amp;rsquo;s running on, and pushing every other greenlet into starvation.&lt;/p>
+&lt;p>If a thread enters an infinite CPU-bound loop, the OS can forcefully preempt it and allow other threads to run.&lt;/p>
+&lt;p>There’s no mechanism that enables &lt;code>gevent&lt;/code> to do the same.&lt;/p>
+&lt;p>It relies on the greenlet to voluntarily yield control after hitting a blocking &lt;code>I/O&lt;/code> operation, leaving the other greenlets vulnerable to starvation, should the current greenlet hit an infinite CPU bound loop.&lt;/p>
+&lt;h3 id="what-does-gevent-under-the-hood">What does Gevent under the hood&lt;/h3>
+&lt;p>But how does synchronous code (&lt;code>requests.get()&lt;/code>, &lt;code>time.sleep()&lt;/code>, etc.) suddenly start behaving cooperatively without you changing a single line? The answer is this goofy technique called monkey-patching.&lt;/p>
+&lt;p>The default blocking implementations of modules like &lt;code>socket&lt;/code> and &lt;code>requests&lt;/code>, get modified by &lt;code>gevent&lt;/code> to use its cooperative methods at runtime.&lt;/p>
+&lt;p>Emphasis on “modified” because the entire module doesn&amp;rsquo;t actually get replaced, just the blocking functions and classes.&lt;/p>
+&lt;p>When you do
+&lt;code>from gevent import monkey&lt;/code>&lt;br>
+&lt;code>monkey.patch_all()&lt;/code>&lt;/p>
+&lt;p>At the beginning of your &lt;code>wsgi.py&lt;/code> file, &lt;code>patch_all()&lt;/code> essentially imports all blocking versions of all compatible modules, and modifies them by replacing their blocking implementation with its cooperative ones.
+This is a one-time operation that happens before any of your other application code executes. So everytime you import the &lt;code>requests&lt;/code> or &lt;code>socket&lt;/code> module in your source code, you’ll actually be running the version that has been patched by &lt;code>gevent&lt;/code>.&lt;/p>
+&lt;p>&lt;strong>Tldr:&lt;/strong>&lt;/p>
+&lt;p>In your &lt;code>wsgi.py&lt;/code> file, call the &lt;code>patch_all()&lt;/code> method before any of the boilerplate code that you already have. You &lt;code>wsgi.py&lt;/code> file should look something like this&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-python" data-lang="python">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">from&lt;/span> gevent &lt;span style="color:#f92672">import&lt;/span> monkey
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>monkey&lt;span style="color:#f92672">.&lt;/span>patch_all()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">import&lt;/span> os
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">from&lt;/span> django.core.wsgi &lt;span style="color:#f92672">import&lt;/span> get_wsgi_application
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>os&lt;span style="color:#f92672">.&lt;/span>environ&lt;span style="color:#f92672">.&lt;/span>setdefault(&lt;span style="color:#e6db74">&amp;#39;DJANGO_SETTINGS_MODULE&amp;#39;&lt;/span>, &lt;span style="color:#e6db74">&amp;#39;myproject.settings&amp;#39;&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>application &lt;span style="color:#f92672">=&lt;/span> get_wsgi_application()
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>While deploying your application (im assuming you’re already using a production ready WSGI server)&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>gunicorn myproject.wsgi:application &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span> --worker-class gevent &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span> --workers &lt;span style="color:#ae81ff">4&lt;/span> &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span> --bind 0.0.0.0:8000
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>In the next part of this series, I’ll do a benchmark that compares the throughput of a single threaded gunicorn worker vs a gevent one.&lt;/p></content></item><item><title>Integrating 'Sign in with Apple' into your Django project *without all-auth*</title><link>/posts/siwa/</link><pubDate>Thu, 19 Dec 2024 13:05:55 +0530</pubDate><guid>/posts/siwa/</guid><description/><content>&lt;p>Apple’s documentation is pretty obscure, so here’s a comprehensive guide on integrating apple’s “Sign in with Apple” feature with your Django backend &lt;em>without&lt;/em> using external libraries like Django-allauth.&lt;/p>
+&lt;blockquote>
+&lt;p>Why avoid Django-allauth? While it&amp;rsquo;s a powerful library, it can be overkill for this specific use case. We&amp;rsquo;ll implement a clean, minimal solution instead.&lt;/p>
+&lt;/blockquote>
+&lt;p>Apple uses oauth2.0, even though its not explicitly mentioned in the docs, so if that’s something you’re already familiar with, this shouldn’t be too difficult.&lt;/p>
+&lt;p>Let&amp;rsquo;s start with the things you need to setup on your &lt;a href="https://developer.apple.com/">Apple developer console&lt;/a>&lt;/p>
+&lt;h2 id="setting-up-your-apple-developer-account">Setting up your Apple developer account&lt;/h2>
+&lt;ol>
+&lt;li>
+&lt;p>Enroll into the Apple developer program&lt;/p>
+&lt;ul>
+&lt;li>This can take a while to verify even after you’hv processed the payment (upto 48 hrs in some cases)&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>Once you have access to the developer console, make an App ID at &lt;a href="https://developer.apple.com/account/resources/identifiers/list">(list of identifiers)&lt;/a>&lt;/p>
+&lt;ul>
+&lt;li>This is fairly straight forward, just make sure you select &lt;em>Sign in with apple&lt;/em> under the “Capabilities” section.&lt;/li>
+&lt;li>&lt;strong>Note&lt;/strong>: Your bundle ID needs to be unique, i.e you cannot have multiple App ID’s or service ID’s with the same bundle ID.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>Create a service ID, click the dropdown at &lt;a href="https://developer.apple.com/account/resources/identifiers/list">(list of identifiers)&lt;/a> and select “Service IDs”. This is what the header should look like.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="../1.png" alt="Scenario 1: Across columns">&lt;/p>
+&lt;p>&lt;img src="../2.png" alt="Scenario 1: Across columns">&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>After you’re done creating your service ID, go back to your list of service ID’s and select the one you want to configure with SIWA.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>You’ll see the following page open,&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="../4.png" alt="Scenario 1: Across columns">&lt;/p>
+&lt;p>keep the “sign in with apple” box checked and click the configure button&lt;/p>
+&lt;ul>
+&lt;li>You should see the following pop up&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="../5.png" alt="Scenario 1: Across columns">&lt;/p>
+&lt;ul>
+&lt;li>In the Domains and subdomains section, enter just the domain name of your application without the https prefix.
+The “Return URLs” section should contain the endpoint in your application responsible for handling Apple’s callback after the User successfully completes the sign in process on the client side.&lt;/li>
+&lt;/ul>
+&lt;p>For Samantha, our “domains and subdomains” section would contain : &lt;code>mysamantha.ai&lt;/code>&lt;/p>
+&lt;p>And our Return URL’s section should contain: &lt;code>https://mysamantha.ai/account/apple/callback&lt;/code>&lt;/p>
+&lt;p>Notice how the return url is prefixed with https.
+Now, Apple being apple, does &lt;strong>NOT&lt;/strong> allow you to use domains without a valid SSL certificate, which means you’ll only be allowed to use return URLs with &lt;code>HTTPS&lt;/code> and not &lt;code>HTTP&lt;/code>.&lt;/p>
+&lt;p>This is can be cumbersome to set for development and testing but its fairly straightforward to use once you have it setup.
+I used &lt;code>mkcert&lt;/code> to create a locally signed SSL certificate and &lt;code>nginx&lt;/code> as a reverse proxy.&lt;/p>
+&lt;p>Now, to make sure that your subdomains and return URLs actually register, make sure you follow the following steps:&lt;/p>
+&lt;ul>
+&lt;li>Click &lt;strong>Next&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="../6.png" alt="Scenario 1: Across columns">&lt;/p>
+&lt;ul>
+&lt;li>Click &lt;strong>Done&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="../7.png" alt="Scenario 1: Across columns">&lt;/p>
+&lt;ul>
+&lt;li>After that step you’ll see this page again.&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="../4.png" alt="Scenario 1: Across columns">&lt;/p>
+&lt;p>Don’t just stop here, click continue and click save in the following page.&lt;/p>
+&lt;p>&lt;img src="../8.png" alt="Scenario 1: Across columns">&lt;/p>
+&lt;p>Your configuration URL’s will not be saved otherwise, even if they seem like they’re added in the URL dropdown that looks like this:&lt;/p>
+&lt;p>&lt;img src="../9.png" alt="Scenario 1: Across columns">&lt;/p>
+&lt;ol start="4">
+&lt;li>
+&lt;p>You’ll now have to create a private key that&amp;rsquo;ll be used to Sign the JWT that’ll contain your Client ID and Team ID.&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>Click configure and select the App ID that you want to associate the private key with&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Download the key. Note that this key is deleted from Apple’s servers after you download it, so make sure you keep it safe.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>If you followed all of the above steps, you should now have the following:&lt;/p>
+&lt;ul>
+&lt;li>Team ID&lt;/li>
+&lt;li>Key ID&lt;/li>
+&lt;li>Service ID&lt;/li>
+&lt;li>Redirect URI&lt;/li>
+&lt;li>Private key (.p8 file)
+That concludes the setup on Apple’s side of things.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;p>Let’s now take a look at how we should go about integrating this with our Django backend.&lt;/p>
+&lt;h2 id="setting-up-your-django-backend">Setting up your Django backend&lt;/h2>
+&lt;ol>
+&lt;li>To initiate the Apple login process, you first have to redirect your user to the following link &lt;a href="https://appleid.apple.com/auth/authorize">https://appleid.apple.com/auth/authorize&lt;/a>. The following data must be sent as query parameters to Apple.&lt;/li>
+&lt;/ol>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Attribute&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>client_id&lt;/td>
+&lt;td>your apple client id (service id)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>redirect_uri&lt;/td>
+&lt;td>endpoint to your application set in the console&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>response_type&lt;/td>
+&lt;td>&amp;ldquo;code&amp;rdquo; (send this exact string)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>scope&lt;/td>
+&lt;td>&amp;ldquo;email&amp;rdquo; (send this exact string)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>response_mode&lt;/td>
+&lt;td>“form_post”&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-python" data-lang="python">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">class&lt;/span> &lt;span style="color:#a6e22e">AppleLogin&lt;/span>(View):
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">def&lt;/span> &lt;span style="color:#a6e22e">get&lt;/span>(self, request):
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> params &lt;span style="color:#f92672">=&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;client_id&amp;#34;&lt;/span>: getattr(settings, &lt;span style="color:#e6db74">&amp;#34;APPLE_CLIENT_ID&amp;#34;&lt;/span>),
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;redirect_uri&amp;#34;&lt;/span> : getattr(settings, &lt;span style="color:#e6db74">&amp;#34;APPLE_REDIRECT_URI&amp;#34;&lt;/span>),
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;response_type&amp;#34;&lt;/span> : &lt;span style="color:#e6db74">&amp;#34;code&amp;#34;&lt;/span>, &lt;span style="color:#75715e">#send this exact string, &lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;scope&amp;#34;&lt;/span> : &lt;span style="color:#e6db74">&amp;#34;name email&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;response_mode&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;form_post&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">return&lt;/span> HttpResponseRedirect(&lt;span style="color:#e6db74">f&lt;/span>&lt;span style="color:#e6db74">&amp;#34;https://appleid.apple.com/auth/authorize?&lt;/span>&lt;span style="color:#e6db74">{&lt;/span>urlencode(params)&lt;span style="color:#e6db74">}&lt;/span>&lt;span style="color:#e6db74">&amp;#34;&lt;/span>)
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ol start="2">
+&lt;li>Once the sign in process has concluded on apple&amp;rsquo;s end, on a high level, the following steps take place:
+&lt;ul>
+&lt;li>Apple sends an authorization token to your application’s endpoint.&lt;/li>
+&lt;li>You generate a JWT signed with the private key you downloaded earlier.&lt;/li>
+&lt;li>This JWT is sent back to apple via a post request, along with the authorization code you received earlier. - If all goes well, apple responds with a JSON object that contains a JWT (id_token) with the user’s details.&lt;/li>
+&lt;li>You can verify the signature of this JWT using apple’s public keys available at &lt;a href="https://appleid.apple.com/auth/keys">https://appleid.apple.com/auth/keys&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;h1 id="lets-explore-each-of-these-steps-in-detail">Lets explore each of these steps in detail&lt;/h1>
+&lt;ul>
+&lt;li>Get the authorization code from Apple by retrieving the &lt;code>code&lt;/code> key-value pair from the POST dictionary. This token will later be exchanged for a JWT from apple containing the user’s details.&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-python" data-lang="python">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">def&lt;/span> &lt;span style="color:#a6e22e">post&lt;/span>(self, request):
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> authorization_code &lt;span style="color:#f92672">=&lt;/span> request&lt;span style="color:#f92672">.&lt;/span>POST[&lt;span style="color:#e6db74">&amp;#34;code&amp;#34;&lt;/span>]
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">if&lt;/span> &lt;span style="color:#f92672">not&lt;/span> authorization_code:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">return&lt;/span> HttpResponse(&lt;span style="color:#e6db74">&amp;#34;authorization code not found&amp;#34;&lt;/span>)
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>
+&lt;p>Before the token exchange can take place, Apple needs a way to verify if the request to exchange tokens is actually coming from your registered application.
+This is achieved by sending a JWT signed with our &lt;code>private key&lt;/code> in addition to the &lt;code>authorization code&lt;/code> in our post request to Apple’s token endpoint (&lt;a href="https://appleid.apple.com/auth/token">https://appleid.apple.com/auth/token&lt;/a>)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>We&amp;rsquo;ll use the following helper function to generate the JWT that we&amp;rsquo;ll send to Apple.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-python" data-lang="python">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">def&lt;/span> &lt;span style="color:#a6e22e">generate_client_key&lt;/span>(self):
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> headers &lt;span style="color:#f92672">=&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;alg&amp;#34;&lt;/span> : &lt;span style="color:#e6db74">&amp;#34;ES256&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;kid&amp;#34;&lt;/span> : getattr(settings, &lt;span style="color:#e6db74">&amp;#34;APPLE_PRIV_KEY_ID&amp;#34;&lt;/span>),
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;typ&amp;#34;&lt;/span> : &lt;span style="color:#e6db74">&amp;#34;JWT&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> payload &lt;span style="color:#f92672">=&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;iss&amp;#34;&lt;/span> : getattr(settings, &lt;span style="color:#e6db74">&amp;#34;APPLE_TEAM_ID&amp;#34;&lt;/span>),
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;iat&amp;#34;&lt;/span> : int(timezone&lt;span style="color:#f92672">.&lt;/span>now()&lt;span style="color:#f92672">.&lt;/span>timestamp()),
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;exp&amp;#34;&lt;/span> : int((timezone&lt;span style="color:#f92672">.&lt;/span>now() &lt;span style="color:#f92672">+&lt;/span> timezone&lt;span style="color:#f92672">.&lt;/span>timedelta(days&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#ae81ff">1&lt;/span>))&lt;span style="color:#f92672">.&lt;/span>timestamp()),
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;aud&amp;#34;&lt;/span> : &lt;span style="color:#e6db74">&amp;#34;https://appleid.apple.com&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;sub&amp;#34;&lt;/span> : getattr(settings, &lt;span style="color:#e6db74">&amp;#34;APPLE_CLIENT_ID&amp;#34;&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> private_key &lt;span style="color:#f92672">=&lt;/span> getattr(settings, &lt;span style="color:#e6db74">&amp;#34;APPLE_PRIVATE_KEY&amp;#34;&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> encoded_string &lt;span style="color:#f92672">=&lt;/span> jwt&lt;span style="color:#f92672">.&lt;/span>encode(
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> payload&lt;span style="color:#f92672">=&lt;/span>payload,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> key&lt;span style="color:#f92672">=&lt;/span>private_key,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> algorithm&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;ES256&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> headers&lt;span style="color:#f92672">=&lt;/span>headers
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> )
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">return&lt;/span> encoded_string
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>Now that we have both the authorization token and our JWT (client_secret), the prerequisites for token exchange are fulfilled.&lt;/li>
+&lt;li>send a &lt;code>post request&lt;/code> to &lt;code>https://appleid.apple.com/auth/token&lt;/code> with the following fields in the payload.&lt;/li>
+&lt;/ul>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Attribute&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>client_id&lt;/td>
+&lt;td>your apple client id (service id)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>client_secret&lt;/td>
+&lt;td>the jwt you signed with your private key&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>code&lt;/td>
+&lt;td>authorization code from apple&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>grant_type&lt;/td>
+&lt;td>&amp;ldquo;authorization_code&amp;rdquo; (send this exact string)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>redirect_uri&lt;/td>
+&lt;td>the redirect uri you set on the developer console&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Content type in the headers &lt;strong>MUST&lt;/strong> be set to to &lt;code>application/x-www-form-urlencoded&lt;/code>. &lt;code>application/form-data&lt;/code> or any other MIME type for that matter, will &lt;strong>NOT&lt;/strong> work.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-python" data-lang="python">&lt;span style="display:flex;">&lt;span>token_url &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#e6db74">&amp;#34;https://appleid.apple.com/auth/token&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> client_secret &lt;span style="color:#f92672">=&lt;/span> self&lt;span style="color:#f92672">.&lt;/span>generate_client_key()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> data &lt;span style="color:#f92672">=&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;client_id&amp;#34;&lt;/span>: getattr(settings, &lt;span style="color:#e6db74">&amp;#34;APPLE_CLIENT_ID&amp;#34;&lt;/span>),
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;client_secret&amp;#34;&lt;/span>: client_secret,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;code&amp;#34;&lt;/span>: authorization_code,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;grant_type&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;authorization_code&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;redirect_uri&amp;#34;&lt;/span>: getattr(settings, &lt;span style="color:#e6db74">&amp;#34;APPLE_REDIRECT_URI&amp;#34;&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> headers &lt;span style="color:#f92672">=&lt;/span> {&lt;span style="color:#e6db74">&amp;#34;Content-Type&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;application/x-www-form-urlencoded&amp;#34;&lt;/span>}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> token_exchange_response &lt;span style="color:#f92672">=&lt;/span> requests&lt;span style="color:#f92672">.&lt;/span>post(token_url, data &lt;span style="color:#f92672">=&lt;/span> data, headers &lt;span style="color:#f92672">=&lt;/span> headers)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> token_exchange_response &lt;span style="color:#f92672">=&lt;/span> token_exchange_response&lt;span style="color:#f92672">.&lt;/span>json()
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>If everything goes well, you’ll receive a response from Apple with a body that looks something like this:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-json" data-lang="json">&lt;span style="display:flex;">&lt;span>{
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;access_token&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;&amp;lt;access token here&amp;gt;&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;token_type&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;Bearer&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;expires_in&amp;#34;&lt;/span>: &lt;span style="color:#ae81ff">3600&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;refresh_token&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;&amp;lt;refresh token here&amp;gt;&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;id_token&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;&amp;lt;id token here&amp;gt;&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>The &lt;code>id_token&lt;/code> key holds the JWT encoded with the user’s details. Decoding this JWT should give the following result in the following format.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-json" data-lang="json">&lt;span style="display:flex;">&lt;span>{
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;iss&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;https://appleid.apple.com&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;aud&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;com.zemuria.test&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;exp&amp;#34;&lt;/span>: &lt;span style="color:#ae81ff">1733295098&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;iat&amp;#34;&lt;/span>: &lt;span style="color:#ae81ff">1733208698&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;sub&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;101549.1a31c4cf89484d0797s4b113fd14db7.0833&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;at_hash&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;-oF09Dzjbiiymu0wnG_ZnQ&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;email&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;example@gmail.com&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;email_verified&amp;#34;&lt;/span>: &lt;span style="color:#66d9ef">true&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;auth_time&amp;#34;&lt;/span>: &lt;span style="color:#ae81ff">1733208696&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#f92672">&amp;#34;nonce_supported&amp;#34;&lt;/span>: &lt;span style="color:#66d9ef">true&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h1 id="verifying-the-jwt-signature">Verifying the JWT signature&lt;/h1>
+&lt;p>That should effectively be the end of the sign in with apple process but how would know if the JWT your endpoint received is actually sent by apple?&lt;/p>
+&lt;p>Best practice here would be to ensure that the JWT you got, is sent from Apple by verifying the JWT’s signature using one of Apple’s JSON Web Keys (JWK’s) at: &lt;code>https://appleid.apple.com/auth/keys&lt;/code>.&lt;/p>
+&lt;p>Apple uses the &lt;code>RS256 algorithm&lt;/code> to sign and verify their JWT’s, which means we’ll have to create an RSA public key using the &lt;code>n&lt;/code> and &lt;code>e&lt;/code> fields from the Apple JWK’s.&lt;/p>
+&lt;p>This is fairly straightforward to achieve using the cryptography library in python.
+Convert the resulting public key to PEM format and use it to decode the JWT.
+If all goes well, we should now have the JWT’s payload with the user&amp;rsquo;s details.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-python" data-lang="python">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">#verifying jwt signature&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> public_keys_response &lt;span style="color:#f92672">=&lt;/span> requests&lt;span style="color:#f92672">.&lt;/span>get(&lt;span style="color:#e6db74">&amp;#34;https://appleid.apple.com/auth/keys&amp;#34;&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> apple_pubic_keys &lt;span style="color:#f92672">=&lt;/span> json&lt;span style="color:#f92672">.&lt;/span>loads(public_keys_response&lt;span style="color:#f92672">.&lt;/span>text)[&lt;span style="color:#e6db74">&amp;#34;keys&amp;#34;&lt;/span>] &lt;span style="color:#75715e">#apple public keys&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> jwt_header &lt;span style="color:#f92672">=&lt;/span> jwt&lt;span style="color:#f92672">.&lt;/span>get_unverified_header(token_exchange_response[&lt;span style="color:#e6db74">&amp;#34;id_token&amp;#34;&lt;/span>]) &lt;span style="color:#75715e">#get header from id_token jwt&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> key_id &lt;span style="color:#f92672">=&lt;/span> jwt_header[&lt;span style="color:#e6db74">&amp;#34;kid&amp;#34;&lt;/span>]
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> public_key_data &lt;span style="color:#f92672">=&lt;/span> next(key &lt;span style="color:#66d9ef">for&lt;/span> key &lt;span style="color:#f92672">in&lt;/span> apple_pubic_keys &lt;span style="color:#66d9ef">if&lt;/span> key[&lt;span style="color:#e6db74">&amp;#34;kid&amp;#34;&lt;/span>] &lt;span style="color:#f92672">==&lt;/span> key_id)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">#Convert JWK to RSA Public Key&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> n &lt;span style="color:#f92672">=&lt;/span> int&lt;span style="color:#f92672">.&lt;/span>from_bytes(base64url_decode(public_key_data[&lt;span style="color:#e6db74">&amp;#34;n&amp;#34;&lt;/span>]), &lt;span style="color:#e6db74">&amp;#34;big&amp;#34;&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> e &lt;span style="color:#f92672">=&lt;/span> int&lt;span style="color:#f92672">.&lt;/span>from_bytes(base64url_decode(public_key_data[&lt;span style="color:#e6db74">&amp;#34;e&amp;#34;&lt;/span>]), &lt;span style="color:#e6db74">&amp;#34;big&amp;#34;&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> public_key &lt;span style="color:#f92672">=&lt;/span> RSAPublicNumbers(n&lt;span style="color:#f92672">=&lt;/span>n, e&lt;span style="color:#f92672">=&lt;/span>e)&lt;span style="color:#f92672">.&lt;/span>public_key(default_backend())
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> public_key_pem &lt;span style="color:#f92672">=&lt;/span> public_key&lt;span style="color:#f92672">.&lt;/span>public_bytes(
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> encoding&lt;span style="color:#f92672">=&lt;/span>Encoding&lt;span style="color:#f92672">.&lt;/span>PEM,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> format&lt;span style="color:#f92672">=&lt;/span>PublicFormat&lt;span style="color:#f92672">.&lt;/span>SubjectPublicKeyInfo,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> )
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> user_data &lt;span style="color:#f92672">=&lt;/span> jwt&lt;span style="color:#f92672">.&lt;/span>decode(
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> key &lt;span style="color:#f92672">=&lt;/span> public_key_pem,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> verify &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#66d9ef">True&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> jwt &lt;span style="color:#f92672">=&lt;/span> token_exchange_response[&lt;span style="color:#e6db74">&amp;#34;id_token&amp;#34;&lt;/span>],
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> algorithms &lt;span style="color:#f92672">=&lt;/span> [&lt;span style="color:#e6db74">&amp;#34;RS256&amp;#34;&lt;/span>],
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> options &lt;span style="color:#f92672">=&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;verify_signature&amp;#34;&lt;/span>: &lt;span style="color:#66d9ef">True&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> )
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Tips:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>Paste your private key into a &lt;code>.pem&lt;/code> file instead of directly placing it in your env. Read the pem file using the os library&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Make sure to follow all the way through and click save to make sure your &lt;code>redirect URIs&lt;/code> register in the developer console&lt;/p>
+&lt;/li>
+&lt;/ul></content></item></channel></rss>
