@@ -1,45 +1,46 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>srijan's blog</title><link>/</link><description>Recent content on srijan's blog</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 02 Oct 2025 00:00:00 +0000</lastBuildDate><atom:link href="/index.xml" rel="self" type="application/rss+xml"/><item><title>Optimizing a DRF application for I/O bound, AI workloads</title><link>/posts/drf-optimization/</link><pubDate>Thu, 02 Oct 2025 00:00:00 +0000</pubDate><guid>/posts/drf-optimization/</guid><description/><content>&lt;p>DRF is my favourite toolkit for building Web API’s.&lt;/p>
-&lt;p>However, it has one fatal flaw – it does not support async out of the box. This shouldn&amp;rsquo;t be a problem for most use cases but if your application &lt;code>I/O&lt;/code> heavy (basically every GPT wrapper on the market right now), this can be a significant bottleneck.&lt;/p>
+&lt;p>However, it has one fatal flaw – it does not support async out of the box. This shouldn&amp;rsquo;t be a problem for most use cases but if your application is &lt;code>I/O&lt;/code> heavy (basically every GPT wrapper on the market right now), this can be a significant bottleneck.&lt;/p>
 &lt;h3 id="what-causes-this-bottleneck">What causes this bottleneck?&lt;/h3>
-&lt;p>The &lt;code>GIL&lt;/code> prevents more than one thread within a process from executing python bytecode at any given point in time. Which means, while your worker is waiting for a response from an &lt;code>I/O&lt;/code> call (api call to Gemini, Anthropic, Openai etc), it just sits there doing nothing. Any other requests assigned to the worker will have to wait until the first request concludes.&lt;/p>
+&lt;p>The &lt;code>GIL&lt;/code> prevents more than one thread within a process from executing Python bytecode at any given point in time. Which means, while your worker is waiting for a response from an &lt;code>I/O&lt;/code> call (API call to Gemini, Anthropic, OpenAI, etc.), it just sits there doing nothing. Any other requests assigned to the worker will have to wait until the first request concludes.&lt;/p>
 &lt;p>There’re a couple of ways to overcome this bottleneck.&lt;/p>
 &lt;p>For starters, you could try increasing the number of workers used by your application server. So when one of your workers is busy waiting for an &lt;code>I/O&lt;/code> call, another worker can handle other requests in the queue.
-This is the easiest form of horizontal scaling. However, workers are “process bound”.&lt;/p>
+This is the easiest form of horizontal scaling. However, workers are “process-bound”.&lt;/p>
 &lt;p>A program, (your DRF code) is merely a collection of passive instructions. The active execution of these instructions is called a process.
-Processes have an independent memory space, a copy of the python interpreter, a copy of your application’s code, and most importantly their own &lt;code>GIL&lt;/code>.&lt;/p>
+Processes have an independent memory space, a copy of the Python interpreter, a copy of your application’s code, and most importantly their own &lt;code>GIL&lt;/code>.&lt;/p>
 &lt;p>This means you can only have a finite number of processes running on a CPU at any given time, considering the high resource requirement that processes bring. This finite number is not nearly large enough to handle the scale modern web applications operate at.
 The number of workers you can spawn on a server is usually &lt;code>2n + 1&lt;/code>, where &lt;code>n&lt;/code> is the number of cores on the CPU.&lt;/p>
 &lt;p>&lt;img alt="Granian worker memory usage" src="./10.png">&lt;/p>
-&lt;p>Each &lt;code>pid&lt;/code> corresponds to one Granian (an http server similar to &lt;code>gunicorn&lt;/code>) worker. Notice how each worker takes up between 400 to 600 mb of memory.&lt;/p>
-&lt;p>To put things into perspective, an i9-9900K, a 16 core CPU, would be able to host 33 workers at most.&lt;/p>
+&lt;p>Each &lt;code>pid&lt;/code> corresponds to one Granian (an HTTP server similar to &lt;code>gunicorn&lt;/code>) worker. Notice how each worker takes up between 400 to 600 MB of memory.&lt;/p>
+&lt;p>To put things into perspective, an i9-9900K, a 16-core CPU, would be able to host 33 workers at most.&lt;/p>
 &lt;p>But all of these limitations exist assuming we only have one thread per process. What if we had multiple threads capable of handling multiple requests?&lt;/p>
 &lt;h2 id="preemptive-multitasking">Preemptive multitasking&lt;/h2>
 &lt;p>This is where &lt;code>gunicorn&lt;/code>’s &lt;code>gthread&lt;/code> worker type comes in.
 While thread A waits for a response from a network call, it surrenders the &lt;code>GIL&lt;/code> to thread B. This means thread B is now free to handle other requests. Once thread A’s &lt;code>I/O&lt;/code> operation concludes, it will fall in line behind any other threads that are waiting to acquire the &lt;code>GIL&lt;/code>. Seems like the ideal solution to our problems. WRONG.&lt;/p>
-&lt;p>Hopping threads is a kernel level operation. This means the OS has to context-switch between &lt;code>user-mode&lt;/code> and &lt;code>kernel-mode&lt;/code>. The kernel then has to save the context of the old thread and load the entire context of the new thread before making the switch back to user-mode. This is an accurate, safe but slow operation.&lt;/p>
-&lt;p>So while the &lt;code>gthread&lt;/code> worker type ensures that a worker is not entirely handicapped while doing &lt;code>I/O&lt;/code>, it comes at the cost of having to constantly switch thread between threads, which is not a cheap operation and relies heavily on the kernel and the os scheduler.&lt;/p>
-&lt;p>Note that the &lt;code>GIL&lt;/code> allows only one thread within a process to execute python bytecode at once, so true multithreading (parallelism) for CPU-intensive tasks isn’t possible in python.&lt;/p>
+&lt;p>Hopping threads is a kernel-level operation. This means the OS has to context-switch between &lt;code>user-mode&lt;/code> and &lt;code>kernel-mode&lt;/code>. The kernel then has to save the context of the old thread and load the entire context of the new thread before making the switch back to user-mode. This is an accurate, safe but slow operation.&lt;/p>
+&lt;p>So while the &lt;code>gthread&lt;/code> worker type ensures that a worker is not entirely handicapped while doing &lt;code>I/O&lt;/code>, it comes at the cost of having to constantly switch between threads, which is not a cheap operation and relies heavily on the kernel and the OS scheduler.&lt;/p>
+&lt;p>Note that the &lt;code>GIL&lt;/code> allows only one thread within a process to execute Python bytecode at once, so true multithreading (parallelism) for CPU-intensive tasks isn’t possible in Python.&lt;/p>
 &lt;h2 id="cooperative-multitasking">Cooperative multitasking&lt;/h2>
 &lt;p>This is where the &lt;code>gunicorn&lt;/code> “&lt;code>gevent&lt;/code>” worker type comes in.
-&lt;code>gevent&lt;/code> “greenlets” are lightweight python objects that can be spawned 100s and thousands of times within a process.&lt;/p>
-&lt;p>Greenlets work on the principle of “cooperative multitasking”. Which means, a greenlet will continue to work on a request, without interruption, until it hits a blocking &lt;code>I/O&lt;/code> call. There’s no external body like the os scheduler or kernel making decisions about when control should be confiscated from one thread and transferred to another.&lt;/p>
-&lt;p>The OS has absolutely no idea that greenlets exist. A “context-swtich” between greenlets is just a function call within the same process. There’s no transition to kernel mode needed to make this happen.&lt;/p>
+&lt;code>gevent&lt;/code> “greenlets” are lightweight Python objects that can be spawned 100s and thousands of times within a process.&lt;/p>
+&lt;p>Greenlets work on the principle of “cooperative multitasking”. Which means, a greenlet will continue to work on a request, without interruption, until it hits a blocking &lt;code>I/O&lt;/code> call. There’s no external body like the OS scheduler or kernel making decisions about when control should be confiscated from one thread and transferred to another.&lt;/p>
+&lt;p>The OS has absolutely no idea that greenlets exist. A “context-switch” between greenlets is just a function call within the same process. There’s no transition to kernel mode needed to make this happen.&lt;/p>
 &lt;p>Then why would one bother using threads at all?
-While greenlets are incredibly lightweight and dramatically boost your worker’s throughput, there’re no guard rails preventing a greenlet from completely monopolizing the thread it&amp;rsquo;s running on, and pushing every other greenlet into starvation.&lt;/p>
+While greenlets are incredibly lightweight and dramatically boost your worker’s throughput, there’re no guardrails preventing a greenlet from completely monopolizing the thread it&amp;rsquo;s running on, and pushing every other greenlet into starvation.&lt;/p>
 &lt;p>If a thread enters an infinite CPU-bound loop, the OS can forcefully preempt it and allow other threads to run.&lt;/p>
 &lt;p>There’s no mechanism that enables &lt;code>gevent&lt;/code> to do the same.&lt;/p>
-&lt;p>It relies on the greenlet to voluntarily yield control after hitting a blocking &lt;code>I/O&lt;/code> operation, leaving the other greenlets vulnerable to starvation, should the current greenlet hit an infinite CPU bound loop.&lt;/p>
-&lt;h3 id="what-does-gevent-under-the-hood">What does Gevent under the hood&lt;/h3>
+&lt;p>It relies on the greenlet to voluntarily yield control after hitting a blocking &lt;code>I/O&lt;/code> operation, leaving the other greenlets vulnerable to starvation, should the current greenlet hit an infinite CPU-bound loop.&lt;/p>
+&lt;h3 id="what-does-gevent-under-the-hood">What does Gevent do under the hood&lt;/h3>
 &lt;p>But how does synchronous code (&lt;code>requests.get()&lt;/code>, &lt;code>time.sleep()&lt;/code>, etc.) suddenly start behaving cooperatively without you changing a single line? The answer is this goofy technique called monkey-patching.&lt;/p>
-&lt;p>The default blocking implementations of modules like &lt;code>socket&lt;/code> and &lt;code>requests&lt;/code>, get modified by &lt;code>gevent&lt;/code> to use its cooperative methods at runtime.&lt;/p>
+&lt;p>The default blocking implementations of modules like &lt;code>socket&lt;/code> and &lt;code>requests&lt;/code> get modified by &lt;code>gevent&lt;/code> to use its cooperative methods at runtime.&lt;/p>
 &lt;p>Emphasis on “modified” because the entire module doesn&amp;rsquo;t actually get replaced, just the blocking functions and classes.&lt;/p>
-&lt;p>When you do
-&lt;code>from gevent import monkey&lt;/code>&lt;br>
-&lt;code>monkey.patch_all()&lt;/code>&lt;/p>
+&lt;p>When you do&lt;/p>
+&lt;pre>&lt;code>from gevent import monkey
+monkey.patch_all()
+&lt;/code>&lt;/pre>
 &lt;p>At the beginning of your &lt;code>wsgi.py&lt;/code> file, &lt;code>patch_all()&lt;/code> essentially imports all blocking versions of all compatible modules, and modifies them by replacing their blocking implementation with its cooperative ones.
-This is a one-time operation that happens before any of your other application code executes. So everytime you import the &lt;code>requests&lt;/code> or &lt;code>socket&lt;/code> module in your source code, you’ll actually be running the version that has been patched by &lt;code>gevent&lt;/code>.&lt;/p>
-&lt;p>&lt;strong>Tldr:&lt;/strong>&lt;/p>
-&lt;p>In your &lt;code>wsgi.py&lt;/code> file, call the &lt;code>patch_all()&lt;/code> method before any of the boilerplate code that you already have. You &lt;code>wsgi.py&lt;/code> file should look something like this&lt;/p>
+This is a one-time operation that happens before any of your other application code executes. So every time you import the &lt;code>requests&lt;/code> or &lt;code>socket&lt;/code> module in your source code, you’ll actually be running the version that has been patched by &lt;code>gevent&lt;/code>.&lt;/p>
+&lt;p>&lt;strong>TL;DR:&lt;/strong>&lt;/p>
+&lt;p>In your &lt;code>wsgi.py&lt;/code> file, call the &lt;code>patch_all()&lt;/code> method before any of the boilerplate code that you already have. Your &lt;code>wsgi.py&lt;/code> file should look something like this&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-python" data-lang="python">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">from&lt;/span> gevent &lt;span style="color:#f92672">import&lt;/span> monkey
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>monkey&lt;span style="color:#f92672">.&lt;/span>patch_all()
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
@@ -49,12 +50,12 @@ This is a one-time operation that happens before any of your other application c
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>os&lt;span style="color:#f92672">.&lt;/span>environ&lt;span style="color:#f92672">.&lt;/span>setdefault(&lt;span style="color:#e6db74">&amp;#39;DJANGO_SETTINGS_MODULE&amp;#39;&lt;/span>, &lt;span style="color:#e6db74">&amp;#39;myproject.settings&amp;#39;&lt;/span>)
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
 &lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>application &lt;span style="color:#f92672">=&lt;/span> get_wsgi_application()
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>While deploying your application (im assuming you’re already using a production ready WSGI server)&lt;/p>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>While deploying your application (I'm assuming you’re already using a production-ready WSGI server)&lt;/p>
 &lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-bash" data-lang="bash">&lt;span style="display:flex;">&lt;span>gunicorn myproject.wsgi:application &lt;span style="color:#ae81ff">\
 &lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span> --worker-class gevent &lt;span style="color:#ae81ff">\
 &lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span> --workers &lt;span style="color:#ae81ff">4&lt;/span> &lt;span style="color:#ae81ff">\
 &lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span> --bind 0.0.0.0:8000
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>In the next part of this series, I’ll do a benchmark that compares the throughput of a single threaded gunicorn worker vs a gevent one.&lt;/p></content></item><item><title>Integrating 'Sign in with Apple' into your Django project *without all-auth*</title><link>/posts/siwa/</link><pubDate>Thu, 19 Dec 2024 13:05:55 +0530</pubDate><guid>/posts/siwa/</guid><description/><content>&lt;p>Apple’s documentation is pretty obscure, so here’s a comprehensive guide on integrating apple’s “Sign in with Apple” feature with your Django backend &lt;em>without&lt;/em> using external libraries like Django-allauth.&lt;/p>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>In the next part of this series, I’ll do a benchmark that compares the throughput of a single-threaded gunicorn worker vs a gevent one.&lt;/p></content></item><item><title>Integrating 'Sign in with Apple' into your Django project *without all-auth*</title><link>/posts/siwa/</link><pubDate>Thu, 19 Dec 2024 13:05:55 +0530</pubDate><guid>/posts/siwa/</guid><description/><content>&lt;p>Apple’s documentation is pretty obscure, so here’s a comprehensive guide on integrating apple’s “Sign in with Apple” feature with your Django backend &lt;em>without&lt;/em> using external libraries like Django-allauth.&lt;/p>
 &lt;blockquote>
 &lt;p>Why avoid Django-allauth? While it&amp;rsquo;s a powerful library, it can be overkill for this specific use case. We&amp;rsquo;ll implement a clean, minimal solution instead.&lt;/p>
 &lt;/blockquote>
